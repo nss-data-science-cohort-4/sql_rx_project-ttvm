@@ -120,21 +120,21 @@ GROUP BY 1,2,3,4
 ORDER BY 4 DESC
 ;
 -- get ODs per 10K
-	SELECT
-		fc.fipscounty
-		, od.overdose_deaths AS num_ods_2017
-		, ROUND((od.overdose_deaths / p3.population * 10000), 6) AS od_rate_per_10K_2017
+SELECT
+	fc.fipscounty
+	, od.overdose_deaths AS num_ods_2017
+	, ROUND((od.overdose_deaths / p3.population * 10000), 6) AS od_rate_per_10K_2017
 
-	FROM overdose_deaths AS od
+FROM overdose_deaths AS od
 
-	JOIN fips_county AS fc
-		ON fc.fipscounty = od.fipscounty
+JOIN fips_county AS fc
+	ON fc.fipscounty = od.fipscounty
 
-	JOIN population AS p3
-		ON p3.fipscounty = od.fipscounty
+JOIN population AS p3
+	ON p3.fipscounty = od.fipscounty
 
-	WHERE od.year = 2017
-	AND fc.state = 'TN'
+WHERE od.year = 2017
+AND fc.state = 'TN'
 ;
 -- Curiosity checks below
 -- 760 zip codes in TN
