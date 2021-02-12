@@ -19,8 +19,8 @@ SELECT zc.fipscounty
 	, p3.population
 	, d.generic_name
 	, d.long_acting_opioid_drug_flag
-	, SUM(p2.total_claim_count) AS tot_opioid_scripts
-	, ROUND(SUM(p2.total_claim_count) / SUM(p3.population) * 10000, 6) AS scripts_per_10k
+	, SUM(p2.total_claim_count) AS tot_scripts
+	, ROUND(SUM(p2.total_claim_count) / p3.population * 10000, 6) AS scripts_per_10k
 	
 FROM zip_to_county AS zc
 
