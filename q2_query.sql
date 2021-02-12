@@ -1,6 +1,49 @@
-select * from prescriber limit 20;
-select * from prescription limit 20;
-select * from drug limit 20;
+CREATE TABLE if not exists opioid_scrips (
+	id serial primary key,
+	generic_name varchar(255),
+	opioid varchar(5),
+	long_acting varchar(5),
+	total_claim_count numeric,
+	total_drug_cost numeric,
+	npi numeric,
+	provider_lname varchar(100),
+	provider_fname varchar(100),
+	nppes_credentials varchar(20),
+	provider_city varchar(50),
+	provider_state varchar(4),
+	provider_zip5 varchar(10),
+	specialty_desc varchar(100),
+	provider_county varchar(50)
+);
+insert into opioid_scrips
+(	generic_name,
+	opioid,
+	long_acting,
+	total_claim_count,
+	total_drug_cost,
+	npi,
+	provider_lname,
+	provider_fname,
+	nppes_credentials,
+	provider_city,
+	provider_state,
+	provider_zip5,
+	specialty_desc,
+	provider_county)
+with zip_county as (
+	select zip, county from(	
+		select 
+			z.zip
+			, z.fipscounty
+			, z.tot_ratio
+			, fc.county
+			, rank() over(partition by z.zip order by z.tot_ratio desc)
+			from zip_fips z
+			join fips_county fc on z.fipscounty = fc.fipscounty
+			where z.fipscounty like '47%'
+		) as zips
+		where rank = 1
+	)
 select d.generic_name
 	, d.opioid_drug_flag
 	, d.long_acting_opioid_drug_flag
@@ -12,25 +55,12 @@ select d.generic_name
 	, p2.nppes_credentials
 	, p2.nppes_provider_city
 	, p2.nppes_provider_state
-	, p2.nppes_provider_zip4
+	, p2.nppes_provider_zip5
 	, p2.specialty_description
-	-- , f.county
+	, coalesce(zc.county, 'NA') as provider_county
 	from drug d
 	join prescription p1 on d.drug_name = p1.drug_name
 	join prescriber p2 on p1.npi = p2.npi
-	-- join zip_fips z on p2.nppes_provider_zip5 = z.zip
-	-- join fips_county f on f.fipscounty = z.fipscounty
+	left join zip_county zc on p2.nppes_provider_zip5 = zc.zip
 where opioid_drug_flag = 'Y';
-
-select * from zip_fips where zip = '37187'
-
-select * from (
-	select zip, fipscounty, tot_ratio, rank() over(partition by zip order by tot_ratio desc) from zip_fips
-	where fipscounty like '47%'
-) as zips where rank = 1
-select zip, count(*) from zip_fips
-where fipscounty like '47%'
-group by zip
-having count(*) > 2
-
-select * from tn_regions
+select * from opioid_scrips
