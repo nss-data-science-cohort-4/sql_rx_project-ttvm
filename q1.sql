@@ -1,9 +1,18 @@
 WITH zip_county AS (
-	SELECT zip, county
-	FROM fips_county
-	INNER JOIN zip_fips
-	USING(fipscounty)
-	WHERE state = 'TN'),
+	select zip, county, population from(	
+		select
+			z.zip
+			, z.fipscounty
+			, z.tot_ratio
+			, fc.county
+			, p.population
+			, rank() over(partition by z.zip order by z.tot_ratio desc)
+			from zip_fips z
+			join fips_county fc on z.fipscounty = fc.fipscounty
+			join population p on z.fipscounty = p.fipscounty
+			where z.fipscounty like '47%'
+		) as zips
+		where rank = 1),
 opioid_claims_zip AS (
 	SELECT drug_name, generic_name, total_claim_count, 
 	total_claim_count_ge65, nppes_provider_zip5
@@ -22,7 +31,7 @@ county_and_claims AS (
 	ON opioid_claims_zip.nppes_provider_zip5 = zip_county.zip
 	GROUP BY county),
 county_pop AS (
-	SELECT county, population
+	SELECT county, population, fipscounty
 	FROM population
 	INNER JOIN fips_county
 	USING (fipscounty)
@@ -30,7 +39,4 @@ county_pop AS (
 SELECT *
 FROM county_and_claims
 LEFT JOIN county_pop
-USING(county)
-;
-
-
+USING(county);
