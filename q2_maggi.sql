@@ -176,4 +176,73 @@ select specialty_description,
 	from spec_claims_ctgry
 	order by opioid_ctgry, pct_ctgry desc;
 	
-select * from opioid_scrips where county_pop = 0;
+with drugs as (
+	select drug_name, 
+	opioid_drug_flag,
+	min(generic_name) as generic
+	from drug
+	group by drug_name, opioid_drug_flag
+),
+claims_by_npi as (
+	select p1.npi, 
+		p2.specialty_description, 
+		sum(p1.total_claim_count) as ttl_claims,
+		sum(case when opioid_drug_flag = 'Y' then total_claim_count else 0 end) as opioid_ttl_claims,
+		sum(case when opioid_drug_flag = 'N' then total_claim_count else 0 end) as nonopioid_ttl_claims
+		from prescription p1
+		join prescriber p2 using(npi)
+		join drugs d on d.drug_name = p1.drug_name
+		group by p1.npi, p2.specialty_description
+		order by p2.specialty_description
+),
+npi_aggregates as (
+	select c1.npi, 
+		c1.specialty_description,
+		c1.ttl_claims,
+		c1.opioid_ttl_claims,
+		c1.nonopioid_ttl_claims,
+		count(npi) over(partition by specialty_description) as specialty_count,
+		count(npi) over () as all_count,
+		sum(ttl_claims) over (partition by specialty_description) as specialty_claims,
+		sum(ttl_claims) over () as all_claims,
+		sum(opioid_ttl_claims) over (partition by specialty_description) as specialty_op_claims,
+		sum(opioid_ttl_claims) over () as all_op_claims,
+		sum(nonopioid_ttl_claims) over (partition by specialty_description) as specialty_nonop_claims,
+		sum(nonopioid_ttl_claims) over () as all_nonop_claims
+		from claims_by_npi c1
+)
+select distinct
+	specialty_description,
+	specialty_count,
+	all_count,
+	round(specialty_count * 1.0 / all_count * 100, 2) as pct_count,
+	specialty_claims,
+	all_claims,
+	round(specialty_claims * 1.0 / all_claims * 100, 2) as pct_claims,
+	specialty_op_claims,
+	all_op_claims,
+	round(specialty_op_claims * 1.0 / all_op_claims * 100, 2) as pct_op_claims,
+	round(specialty_op_claims * 1.0 / specialty_claims * 100, 2) as op_ratio,
+	specialty_nonop_claims,
+	all_nonop_claims,
+	round(specialty_nonop_claims * 1.0 / all_nonop_claims * 100, 2) as pct_nonop_claims
+from npi_aggregates
+order by pct_op_claims desc;
+
+/*
+**NOTE: the claim counts in the query above are off roughly 1% due to
+**the fact that some brand names have multiple generics and some 
+**generics have multiple brand names
+**this is partly but not completely handled in the query above
+
+select sum(total_claim_count) from prescription;
+
+select p2.specialty_description, sum(total_claim_count) from prescription p1
+join prescriber p2 using(npi)
+join drug d using(drug_name)
+group by p2.specialty_description;
+
+select sum(total_claim_count) from prescription p1
+join prescriber p2 using(npi)
+join drug d using(drug_name);
+*/
